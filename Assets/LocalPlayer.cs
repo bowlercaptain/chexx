@@ -16,7 +16,6 @@ public class LocalPlayer : MonoBehaviour {
 	string to;
 
 	public void acceptNewBoard(Dictionary<Point2, string> chars) {
-		Debug.Log("recieved board");
 		string[,] board = new string[8, 8];
 		for (int x = 0; x < 8; x++) {
 			for (int y = 0; y < 8; y++) {
@@ -56,12 +55,12 @@ public class LocalPlayer : MonoBehaviour {
 
 	private void OnGUI() {
 		if (!share) { return; }
-		GUI.Label(new Rect(400, 0, 400, 400), serverResult + "\n\n" + renderBoard + "\n"+turnString);
+		GUI.Label(new Rect(400, 0, 400, 500), serverResult + "\n\n" + renderBoard + "\n"+turnString);
 		GUI.Label(new Rect(250, 0, 100, 50),"starting point");
 		from = GUI.TextField(new Rect(350, 0, 50, 50), from);
 		GUI.Label(new Rect(250, 50, 100, 50), "destination");
 		to = GUI.TextField(new Rect(350, 50, 50, 50), to);
-		if (GUI.Button(new Rect(250, 300, 300, 100), "send lol")) {
+		if (GUI.Button(new Rect(250, 300, 300, 100), "send move")) {
 			SendMove(from, to);
 		}
 	}

@@ -9,6 +9,7 @@ public class SharedPlayer : NetworkBehaviour {
 	int elo;
 	string multiplayervalue;
 	public GameObject cubePrefab;
+	int myNetId = -1;
 
 	Serv serv;
 	LocalPlayer localPlayer;
@@ -18,19 +19,20 @@ public class SharedPlayer : NetworkBehaviour {
 		serv.AddPlayer(this);
 	}
 
-	public override void OnStartClient() {
-		
+	public override void OnStartLocalPlayer() {
 		localPlayer = FindObjectOfType<LocalPlayer>();
 		localPlayer.share = this;
 	}
 
 	[Command]
 	public void CmdSendMove(Point2 from, Point2 to) {
+		
 		serv.processMove(from, to, this);
 	}
 
 	[ClientRpc]
 	public void RpcRecieveBoard(Point2[] points, string[] positions) {
+		if (!isLocalPlayer) { return; }
 		Debug.Log("recieving board");
 		var l = new Dictionary<Point2, string>();
 		for (int i = 0; i < points.Length; i++) {
@@ -40,14 +42,16 @@ public class SharedPlayer : NetworkBehaviour {
 	}
 
 	[ClientRpc]
-	public void RpcRecieveTurn(bool isTurn){
+	public void RpcRecieveTurn(bool isTurn) {
+		if (!isLocalPlayer) { return; }
 		localPlayer.AcceptTurnChange(isTurn);
 	}
 
 	[ClientRpc]
-	public void RpcRecieveTurnResult(string result){
+	public void RpcRecieveTurnResult(string result) {
+		if (!isLocalPlayer) { return; }
 		localPlayer.AcceptServerResponse(result);
 	}
 
-	
+
 }

@@ -21,6 +21,7 @@ public class Serv : MonoBehaviour {
 		if(GUI.Button(new Rect(300,300,300,300),"show boards")){
 			showBoard(0);
 			showBoard(1);
+			players[0].RpcRecieveTurnResult("u get hekt");
 		}
 	}
 
@@ -29,7 +30,6 @@ public class Serv : MonoBehaviour {
 	}
 
 	public Dictionary<Vector2, string> seenSquares(int owner) {
-		Debug.Log("seeing board");
 		Dictionary<Vector2, string> result = new Dictionary<Vector2, string>();
 		for (int x = 0; x < board.GetLength(0); x++) {
 			for (int y = 0; y < board.GetLength(1); y++) {
@@ -57,7 +57,6 @@ public class Serv : MonoBehaviour {
 	}
 
 	public void showBoard(int playerNum) {
-		Debug.Log("showing board");
 		List<Point2> points = new List<Point2>();
 		List<string> strings = new List<string>();
 		var squares = seenSquares(playerNum);
@@ -90,7 +89,7 @@ public class Serv : MonoBehaviour {
 			board[to.x, to.y] = board[from.x, from.y];
 			board[from.x, from.y] = null;
 			nextTurn();//sketchu
-			players[(turn + 1 % 2)].RpcRecieveTurnResult("Your piece got taken!");
+			players[(turn + 1) % 2].RpcRecieveTurnResult("Your piece got taken!");
 			return "you took a piece!";
 		}
 		if (board[from.x, from.y].getMovablePositions(from, boardSize).Contains(to) && board[to.x, to.y] == null) {
@@ -99,7 +98,7 @@ public class Serv : MonoBehaviour {
 			nextTurn();
 			return "move successful.";
 		}
-		return "something went wrong.";
+		return "That piece can't move there.";
 	}
 
 	public void nextTurn() {
