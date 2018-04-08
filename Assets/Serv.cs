@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Networking;
 
 public class Serv : MonoBehaviour {
 	Piece[,] board = new Piece[8, 8];
@@ -10,11 +11,30 @@ public class Serv : MonoBehaviour {
 
 	private void Start() {//call from onserverstart or something
 		BeginMatch();
+		GetComponent<NetworkManager>().StartServer();
 	}
 	public void BeginMatch() {
 		board = new Piece[8, 8];
-		board[0, 0] = new Piece(0);
-		board[7, 7] = new Piece(1);
+		board[0, 0] = new Rook(0);
+		board[7, 0] = new Rook(0);
+		board[0, 7] = new Rook(1);
+		board[7, 7] = new Rook(1);
+		board[1, 0] = new Knight(0);
+		board[6, 0] = new Knight(0);
+		board[1, 7] = new Knight(1);
+		board[6, 7] = new Knight(1);
+		board[2, 0] = new Bishop(0);
+		board[5, 0] = new Bishop(0);
+		board[2, 7] = new Bishop(1);
+		board[5, 7] = new Bishop(1);
+		board[3, 0] = new King(0);
+		board[4, 0] = new Queen(0);
+		board[3, 7] = new King(1);
+		board[4, 7] = new Queen(1);
+		for(int i = 0; i < 8; i++){
+			board[i, 1] = new Pawn(0);
+			board[i, 6] = new Pawn(1);
+		}
 	}
 
 	private void OnGUI() {
@@ -27,6 +47,16 @@ public class Serv : MonoBehaviour {
 
 	public void AddPlayer(SharedPlayer player) {
 		players.Add(player);
+		Invoke("ShowBoardToNewPlayer", .00001f);
+	}
+
+	public void ShowBoardToNewPlayer(){
+		int playernum = players.Count - 1;
+		showBoard(playernum);
+		players[playernum].RpcRecieveTurn(playernum == turn);
+		if(players.Count == 2){
+			InvokeRepeating("checkForPlayerQuits", 5f, 5f);
+		}
 	}
 
 	public Dictionary<Vector2, string> seenSquares(int owner) {
@@ -40,13 +70,17 @@ public class Serv : MonoBehaviour {
 					}
 
 					foreach (Point2 targetSquare in piece.getAllTargetablePositions(new Point2(x, y), new Point2(board.GetLength(0), board.GetLength(1)))) {
+						if(!boardSize.inBounds(targetSquare)){
+							Debug.Log(piece);
+							Debug.Log(targetSquare.x);
+						}
 						if (!result.ContainsKey(targetSquare)) {
 							//targetSquare is guaranteed to be inside board (hopefully)
 							Piece seenPiece = board[targetSquare.x, targetSquare.y];
 							if (seenPiece != null) {
 								result.Add(targetSquare, seenPiece.getCharacter());
 							} else {
-								result.Add(targetSquare, ".");
+								result.Add(targetSquare,  ((targetSquare.x + targetSquare.y)%2==0 ? "　" : "　"));
 							}
 						}
 					}
@@ -84,10 +118,23 @@ public class Serv : MonoBehaviour {
 		if (board[from.x, from.y] == null) {
 			return "there's no piece there.";
 		}
+		if(board[from.x, from.y].owner != turn){
+			return "that's not your piece!";
+		}
 		if (board[from.x, from.y].getAttackablePositions(from, boardSize).Contains(to) && board[to.x, to.y] != null && board[to.x, to.y].owner != turn) {
 			//Destroy(board[to.x, to.y]);
+			if(board[to.x, to.y].GetType()==typeof(King)){
+				board[to.x, to.y] = board[from.x, from.y];
+				board[from.x, from.y] = null;
+				checkPromotePawn(to);
+				players[(turn + 1) % 2].RpcRecieveGameResult(false);
+				players[(turn + 1) % 2].RpcRecieveTurnResult("You lose!");
+				players[turn].RpcRecieveGameResult(true);
+				return "You win!";
+			}
 			board[to.x, to.y] = board[from.x, from.y];
 			board[from.x, from.y] = null;
+			checkPromotePawn(to);
 			nextTurn();//sketchu
 			players[(turn + 1) % 2].RpcRecieveTurnResult("Your piece got taken!");
 			return "you took a piece!";
@@ -95,10 +142,20 @@ public class Serv : MonoBehaviour {
 		if (board[from.x, from.y].getMovablePositions(from, boardSize).Contains(to) && board[to.x, to.y] == null) {
 			board[to.x, to.y] = board[from.x, from.y];
 			board[from.x, from.y] = null;
+			checkPromotePawn(to);
 			nextTurn();
 			return "move successful.";
 		}
 		return "That piece can't move there.";
+	}
+
+	public void checkPromotePawn(Point2 spot){
+		if (board[spot.x, spot.y].GetType() == typeof(Pawn)){
+			if(spot.y == 0 || spot.y == boardSize.y-1){//this assumes pawns only move forward
+				//capture ownership, destroy pawn
+				board[spot.x, spot.y] = new Queen(board[spot.x, spot.y].owner);//this assumes the piece is not null
+			}
+		}
 	}
 
 	public void nextTurn() {
@@ -110,4 +167,18 @@ public class Serv : MonoBehaviour {
 
 	}
 
+	public void checkForPlayerQuits(){
+		for (int i = 0; i < players.Count; i++) {
+			if (players[i]==null){
+				var otherPlayer = players[(i + 1) % 2];
+				otherPlayer.RpcRecieveQuitReason("Your opponent ragequit. You win. :3");
+				otherPlayer.RpcRecieveGameResult(true);
+				endGame();
+			}
+		}
+	}
+
+	void endGame(){
+		Application.Quit();
+	}
 }

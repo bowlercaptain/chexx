@@ -6,11 +6,6 @@ using UnityEngine.Networking;
 
 public class SharedPlayer : NetworkBehaviour {
 
-	int elo;
-	string multiplayervalue;
-	public GameObject cubePrefab;
-	int myNetId = -1;
-
 	Serv serv;
 	LocalPlayer localPlayer;
 
@@ -24,10 +19,20 @@ public class SharedPlayer : NetworkBehaviour {
 		localPlayer.share = this;
 	}
 
+
 	[Command]
 	public void CmdSendMove(Point2 from, Point2 to) {
-		
+
 		serv.processMove(from, to, this);
+	}
+
+	[Command]
+	public void CmdIAmQuitting() {
+		Debug.Log("player is quitting");
+	}
+
+	private void OnApplicationQuit() {
+		CmdIAmQuitting();
 	}
 
 	[ClientRpc]
@@ -53,5 +58,14 @@ public class SharedPlayer : NetworkBehaviour {
 		localPlayer.AcceptServerResponse(result);
 	}
 
+	[ClientRpc]
+	public void RpcRecieveQuitReason(string reason){
+		if (!isLocalPlayer) { return; }
+		localPlayer.quitReason = reason;
+	}
 
+	public void RpcRecieveGameResult(bool won){
+		if(!isLocalPlayer){ return; }
+		localPlayer.acceptGameResult(won);
+	}
 }
